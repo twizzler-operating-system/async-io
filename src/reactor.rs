@@ -35,10 +35,15 @@ cfg_if::cfg_if! {
     } else if #[cfg(unix)] {
         mod unix;
         pub use unix::Registration;
+    } else if #[cfg(target_os = "twizzler")] {
+        //mod twizzler;
+        //pub use twizzler::Registration;
     } else {
         compile_error!("unsupported platform");
     }
 }
+mod twizzler;
+pub use twizzler::Registration;
 
 #[cfg(not(target_os = "espidf"))]
 const TIMER_QUEUE_SIZE: usize = 1000;

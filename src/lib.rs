@@ -83,7 +83,9 @@ use futures_io::{AsyncRead, AsyncWrite};
 use futures_lite::stream::{self, Stream};
 use futures_lite::{future, pin, ready};
 
+#[cfg(not(target_os = "twizzler"))]
 use rustix::io as rio;
+#[cfg(not(target_os = "twizzler"))]
 use rustix::net as rn;
 use rustix::net::addr::SocketAddrArg;
 
@@ -1415,6 +1417,7 @@ where
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 impl Async<TcpListener> {
     /// Creates a TCP listener bound to the specified address.
     ///
@@ -1488,6 +1491,7 @@ impl Async<TcpListener> {
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 impl TryFrom<std::net::TcpListener> for Async<std::net::TcpListener> {
     type Error = io::Error;
 
@@ -1496,6 +1500,7 @@ impl TryFrom<std::net::TcpListener> for Async<std::net::TcpListener> {
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 impl Async<TcpStream> {
     /// Creates a TCP connection to the specified address.
     ///
@@ -1561,6 +1566,7 @@ impl Async<TcpStream> {
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 impl TryFrom<std::net::TcpStream> for Async<std::net::TcpStream> {
     type Error = io::Error;
 
@@ -1569,6 +1575,7 @@ impl TryFrom<std::net::TcpStream> for Async<std::net::TcpStream> {
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 impl Async<UdpSocket> {
     /// Creates a UDP socket bound to the specified address.
     ///
@@ -1744,6 +1751,7 @@ impl Async<UdpSocket> {
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 impl TryFrom<std::net::UdpSocket> for Async<std::net::UdpSocket> {
     type Error = io::Error;
 
@@ -2062,6 +2070,7 @@ async fn optimistic(fut: impl Future<Output = io::Result<()>>) -> io::Result<()>
     .await
 }
 
+#[cfg(not(target_os = "twizzler"))]
 fn connect(
     addr: rn::SocketAddrAny,
     domain: rn::AddressFamily,
@@ -2161,6 +2170,7 @@ fn connect(
     Ok(socket)
 }
 
+#[cfg(not(target_os = "twizzler"))]
 #[inline]
 fn setup_networking() {
     #[cfg(windows)]
@@ -2175,6 +2185,7 @@ fn setup_networking() {
     }
 }
 
+#[cfg(not(target_os = "twizzler"))]
 #[inline]
 fn set_nonblocking(
     #[cfg(unix)] fd: BorrowedFd<'_>,
@@ -2201,6 +2212,7 @@ fn set_nonblocking(
     Ok(())
 }
 
+#[cfg(not(target_os = "twizzler"))]
 /// Converts a `Path` to its socket address representation.
 ///
 /// This function is abstract socket-aware.

@@ -56,5 +56,5 @@ timerfd = "1"
 [target.'cfg(windows)'.dev-dependencies]
 uds_windows = "1"
 
-[patch.crates-io]
-async-io = { path = "." }
+#[patch.crates-io]
+#async-io = { path = "." }
