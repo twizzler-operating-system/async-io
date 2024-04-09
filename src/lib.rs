@@ -83,6 +83,7 @@ use futures_io::{AsyncRead, AsyncWrite};
 use futures_lite::stream::{self, Stream};
 use futures_lite::{future, pin, ready};
 
+use polling::BorrowedTwizzlerWaitable;
 #[cfg(not(target_os = "twizzler"))]
 use rustix::io as rio;
 #[cfg(not(target_os = "twizzler"))]
@@ -630,6 +631,36 @@ pub struct Async<T> {
 }
 
 impl<T> Unpin for Async<T> {}
+
+//#[cfg(target_os = "twizzler")]
+impl<T: twizzler_futures::TwizzlerWaitable + Sync> Async<Pin<Box<T>>> {
+    /// Creates an async I/O handle.
+    ///
+    /// This method will put the handle in non-blocking mode and register it in the reactor.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use async_io::Async;
+    /// use std::net::{SocketAddr, TcpListener};
+    ///
+    /// # futures_lite::future::block_on(async {
+    /// let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))?;
+    /// let listener = Async::new(listener)?;
+    /// # std::io::Result::Ok(()) });
+    /// ```
+    pub fn new(io: T) -> io::Result<Async<Pin<Box<T>>>> {
+        let io = Box::pin(io);
+        let btw = BorrowedTwizzlerWaitable::new(&*io);
+        // SAFETY: we pin the IO source while this type is alive.
+        let registration = unsafe { Registration::new(btw) };
+
+        Ok(Async {
+            source: Reactor::get().insert_io(registration)?,
+            io: Some(io),
+        })
+    }
+}
 
 #[cfg(unix)]
 impl<T: AsFd> Async<T> {

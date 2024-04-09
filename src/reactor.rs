@@ -216,6 +216,7 @@ impl Reactor {
         self.process_timer_ops(&mut timers);
 
         let now = Instant::now();
+        tracing::trace!("checking: {:?}: {:?}", now, timers);
 
         // Split timers into ready and pending timers.
         //
