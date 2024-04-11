@@ -63,6 +63,7 @@
 
 use std::future::Future;
 use std::io::{self, IoSlice, IoSliceMut, Read, Write};
+#[cfg(not(target_os = "twizzler"))]
 use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -80,7 +81,9 @@ use std::{
 use std::os::windows::io::{AsRawSocket, AsSocket, BorrowedSocket, OwnedSocket, RawSocket};
 
 use futures_io::{AsyncRead, AsyncWrite};
-use futures_lite::stream::{self, Stream};
+use futures_lite::stream::Stream;
+#[cfg(not(target_os = "twizzler"))]
+use futures_lite::stream::{self};
 use futures_lite::{future, pin, ready};
 
 use polling::BorrowedTwizzlerWaitable;

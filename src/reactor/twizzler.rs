@@ -9,15 +9,15 @@ use std::io::Result;
 /// The raw registration into the reactor.
 #[doc(hidden)]
 pub struct Registration {
-    /// Raw file descriptor on Unix.
+    /// Twizzler waitable.
     ///
     /// # Invariant
     ///
-    /// This describes a valid file descriptor that has not been `close`d. It will not be
-    /// closed while this object is alive.
+    /// This describes a valid Twizzler waitable object, with lifetime static, an invariant we'll uphold vir the unsafe new function.
     raw: BorrowedTwizzlerWaitable<'static>,
 }
 
+// Safety: Contains a raw pointer that we never read through, with static lifetime (by assumption).
 unsafe impl Sync for Registration {}
 
 impl fmt::Debug for Registration {
@@ -39,11 +39,11 @@ impl AsSource for &Registration {
 }
 
 impl Registration {
-    /// Add this file descriptor into the reactor.
+    /// Add this waitable into the reactor.
     ///
     /// # Safety
     ///
-    /// The provided file descriptor must be valid and not be closed while this object is alive.
+    /// The provided object must be valid while this object is alive, 'a must outlive Self.
     pub(crate) unsafe fn new<'a>(f: BorrowedTwizzlerWaitable<'a>) -> Self {
         Self {
             raw: core::mem::transmute(f),
