@@ -40,7 +40,7 @@ tracing = { version = "0.1.37", default-features = false }
 rustix = { version = "0.38.2", default-features = false, features = ["fs", "net", "std"] }
 
 [target.'cfg(target_os = "twizzler")'.dependencies]
-twizzler-futures = { path = "../../twizzler-futures" }
+twizzler-futures = "0.1.0"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59.0", features = ["Win32_Foundation"] }
