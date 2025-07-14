@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use polling::{AsRawSource, AsSource, BorrowedTwizzlerWaitable};
-use polling::{Event, Poller};
+use std::{fmt, io::Result};
 
-use std::fmt;
-use std::io::Result;
+use polling::{AsRawSource, AsSource, BorrowedTwizzlerWaitable, Event, Poller};
 
 /// The raw registration into the reactor.
 #[doc(hidden)]
@@ -13,7 +11,8 @@ pub struct Registration {
     ///
     /// # Invariant
     ///
-    /// This describes a valid Twizzler waitable object, with lifetime static, an invariant we'll uphold vir the unsafe new function.
+    /// This describes a valid Twizzler waitable object, with lifetime static, an invariant we'll
+    /// uphold vir the unsafe new function.
     raw: BorrowedTwizzlerWaitable<'static>,
 }
 

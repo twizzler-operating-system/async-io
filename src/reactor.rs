@@ -1,16 +1,19 @@
-use std::borrow::Borrow;
-use std::collections::BTreeMap;
-use std::fmt;
-use std::future::Future;
-use std::io;
-use std::marker::PhantomData;
-use std::mem;
-use std::panic;
-use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::task::{Context, Poll, Waker};
-use std::time::{Duration, Instant};
+use std::{
+    borrow::Borrow,
+    collections::BTreeMap,
+    fmt,
+    future::Future,
+    io,
+    marker::PhantomData,
+    mem, panic,
+    pin::Pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex, MutexGuard,
+    },
+    task::{Context, Poll, Waker},
+    time::{Duration, Instant},
+};
 
 use async_lock::OnceCell;
 use concurrent_queue::ConcurrentQueue;

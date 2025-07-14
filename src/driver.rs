@@ -1,11 +1,14 @@
-use std::cell::{Cell, RefCell};
-use std::future::Future;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::task::Waker;
-use std::task::{Context, Poll};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::{
+    cell::{Cell, RefCell},
+    future::Future,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc,
+    },
+    task::{Context, Poll, Waker},
+    thread,
+    time::{Duration, Instant},
+};
 
 use async_lock::OnceCell;
 use futures_lite::pin;
@@ -54,6 +57,7 @@ fn main_loop(parker: parking::Parker) {
 
     loop {
         let tick = Reactor::get().ticker();
+        tracing::trace!("tick: {} (last = {}), {}", tick, last_tick, sleeps);
 
         if last_tick == tick {
             let reactor_lock = if sleeps >= 10 {
@@ -82,7 +86,7 @@ fn main_loop(parker: parking::Parker) {
 
             tracing::trace!("sleeping for {} us", delay_us);
             if parker.park_timeout(Duration::from_micros(*delay_us)) {
-                tracing::trace!("notified");
+                tracing::trace!("post park notified");
 
                 // If notified before timeout, reset the last tick and the sleep counter.
                 last_tick = Reactor::get().ticker();
@@ -99,8 +103,9 @@ fn main_loop(parker: parking::Parker) {
 /// # Examples
 ///
 /// ```
-/// use async_io::Timer;
 /// use std::time::Duration;
+///
+/// use async_io::Timer;
 ///
 /// async_io::block_on(async {
 ///     // This timer will likely be processed by the current
@@ -197,8 +202,9 @@ pub fn block_on<T>(future: impl Future<Output = T>) -> T {
         loop {
             // Poll the future.
             if let Poll::Ready(t) = future.as_mut().poll(cx) {
-                // Ensure the cached parker is reset to the unnotified state for future block_on calls,
-                // in case this future called wake and then immediately returned Poll::Ready.
+                // Ensure the cached parker is reset to the unnotified state for future block_on
+                // calls, in case this future called wake and then immediately
+                // returned Poll::Ready.
                 p.park_timeout(Duration::from_secs(0));
                 tracing::trace!("completed");
                 return t;
