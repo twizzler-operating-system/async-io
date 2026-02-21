@@ -13,7 +13,7 @@ pub struct Registration {
     ///
     /// This describes a valid Twizzler waitable object, with lifetime static, an invariant we'll
     /// uphold vir the unsafe new function.
-    raw: BorrowedTwizzlerWaitable<'static>,
+    raw: BorrowedTwizzlerWaitable,
 }
 
 // Safety: Contains a raw pointer that we never read through, with static lifetime (by assumption).
@@ -26,13 +26,13 @@ impl fmt::Debug for Registration {
 }
 
 impl AsRawSource for &Registration {
-    fn raw(&self) -> &BorrowedTwizzlerWaitable<'static> {
+    fn raw(&self) -> &BorrowedTwizzlerWaitable {
         &self.raw
     }
 }
 
 impl AsSource for &Registration {
-    fn source(&self) -> &BorrowedTwizzlerWaitable<'static> {
+    fn source(&self) -> &BorrowedTwizzlerWaitable {
         &self.raw
     }
 }
@@ -43,10 +43,8 @@ impl Registration {
     /// # Safety
     ///
     /// The provided object must be valid while this object is alive, 'a must outlive Self.
-    pub(crate) unsafe fn new<'a>(f: BorrowedTwizzlerWaitable<'a>) -> Self {
-        Self {
-            raw: core::mem::transmute(f),
-        }
+    pub(crate) unsafe fn new(f: BorrowedTwizzlerWaitable) -> Self {
+        Self { raw: f }
     }
 
     /// Registers the object into the reactor.

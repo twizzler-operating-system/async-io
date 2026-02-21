@@ -41,6 +41,7 @@ rustix = { version = "0.38.2", default-features = false, features = ["fs", "net"
 
 [target.'cfg(target_os = "twizzler")'.dependencies]
 twizzler-futures = "0.1.0"
+twizzler-rt-abi = "*"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59.0", features = ["Win32_Foundation"] }

@@ -64,13 +64,14 @@
     html_logo_url = "https://raw.githubusercontent.com/smol-rs/smol/master/assets/images/logo_fullsize_transparent.png"
 )]
 
-#[cfg(not(target_os = "twizzler"))]
-use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
+#[cfg(target_os = "twizzler")]
+use std::os::fd::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd};
 #[cfg(windows)]
 use std::os::windows::io::{AsRawSocket, AsSocket, BorrowedSocket, OwnedSocket, RawSocket};
 use std::{
     future::Future,
     io::{self, IoSlice, IoSliceMut, Read, Write},
+    net::{SocketAddr, TcpListener, TcpStream, UdpSocket},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
@@ -84,9 +85,10 @@ use std::{
 };
 
 use futures_io::{AsyncRead, AsyncWrite};
-#[cfg(not(target_os = "twizzler"))]
-use futures_lite::stream::{self};
-use futures_lite::{future, pin, ready, stream::Stream};
+use futures_lite::{
+    future, pin, ready,
+    stream::{self, Stream},
+};
 use polling::BorrowedTwizzlerWaitable;
 #[cfg(not(target_os = "twizzler"))]
 use rustix::io as rio;
@@ -652,7 +654,7 @@ pub struct Async<T> {
 impl<T> Unpin for Async<T> {}
 
 //#[cfg(target_os = "twizzler")]
-impl<T: twizzler_futures::TwizzlerWaitable + Sync> Async<Pin<Box<T>>> {
+impl<T: twizzler_futures::TwizzlerWaitable + Sync + Send> Async<T> {
     /// Creates an async I/O handle.
     ///
     /// This method will put the handle in non-blocking mode and register it in the reactor.
@@ -669,9 +671,32 @@ impl<T: twizzler_futures::TwizzlerWaitable + Sync> Async<Pin<Box<T>>> {
     /// let listener = Async::new(listener)?;
     /// # std::io::Result::Ok(()) });
     /// ```
-    pub fn new(io: T) -> io::Result<Async<Pin<Box<T>>>> {
+    pub fn new_pin(io: T) -> io::Result<Async<Pin<Box<T>>>>
+    where
+        T: 'static,
+    {
         let io = Box::pin(io);
-        let btw = BorrowedTwizzlerWaitable::new(&*io);
+        let ptr: Pin<&'static T> = unsafe { std::mem::transmute(Pin::new_unchecked(&*io)) };
+        let btw = BorrowedTwizzlerWaitable::new(ptr);
+        // SAFETY: we pin the IO source while this type is alive.
+        let registration = unsafe { Registration::new(btw) };
+
+        Ok(Async {
+            source: Reactor::get().insert_io(registration)?,
+            io: Some(io),
+        })
+    }
+
+    /// .
+    pub fn new(io: T) -> io::Result<Async<T>>
+    where
+        T: AsFd + 'static,
+    {
+        //let io = Box::pin(io);
+        let fd = io.as_fd();
+        set_nonblocking(fd)?;
+        let fd = fd.as_raw_fd();
+        let btw = BorrowedTwizzlerWaitable::new_fd(fd);
         // SAFETY: we pin the IO source while this type is alive.
         let registration = unsafe { Registration::new(btw) };
 
@@ -745,14 +770,14 @@ impl<T: AsFd> Async<T> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "twizzler"))]
 impl<T: AsRawFd> AsRawFd for Async<T> {
     fn as_raw_fd(&self) -> RawFd {
         self.get_ref().as_raw_fd()
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "twizzler"))]
 impl<T: AsFd> AsFd for Async<T> {
     fn as_fd(&self) -> BorrowedFd<'_> {
         self.get_ref().as_fd()
@@ -768,7 +793,7 @@ impl<T: AsFd + From<OwnedFd>> TryFrom<OwnedFd> for Async<T> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "twizzler"))]
 impl<T: Into<OwnedFd>> TryFrom<Async<T>> for OwnedFd {
     type Error = io::Error;
 
@@ -1094,6 +1119,7 @@ impl<T> Async<T> {
                 Err(err) if err.kind() == io::ErrorKind::WouldBlock => {}
                 res => return res,
             }
+            eprintln!("rw");
             optimistic(self.readable()).await?;
         }
     }
@@ -1484,7 +1510,6 @@ where
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 impl Async<TcpListener> {
     /// Creates a TCP listener bound to the specified address.
     ///
@@ -1561,7 +1586,6 @@ impl Async<TcpListener> {
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 impl TryFrom<std::net::TcpListener> for Async<std::net::TcpListener> {
     type Error = io::Error;
 
@@ -1570,7 +1594,6 @@ impl TryFrom<std::net::TcpListener> for Async<std::net::TcpListener> {
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 impl Async<TcpStream> {
     /// Creates a TCP connection to the specified address.
     ///
@@ -1589,15 +1612,11 @@ impl Async<TcpStream> {
     pub async fn connect<A: Into<SocketAddr>>(addr: A) -> io::Result<Async<TcpStream>> {
         // Figure out how to handle this address.
         let addr = addr.into();
-        let (domain, sock_addr) = match addr {
-            SocketAddr::V4(v4) => (rn::AddressFamily::INET, v4.as_any()),
-            SocketAddr::V6(v6) => (rn::AddressFamily::INET6, v6.as_any()),
-        };
 
         // Begin async connect.
-        let socket = connect(sock_addr, domain, Some(rn::ipproto::TCP))?;
+        let socket = std::net::TcpStream::connect(addr)?;
         // Use new_nonblocking because connect already sets socket to non-blocking mode.
-        let stream = Async::new_nonblocking(TcpStream::from(socket))?;
+        let stream = Async::new(TcpStream::from(socket))?;
 
         // The stream becomes writable when connected.
         stream.writable().await?;
@@ -1638,7 +1657,6 @@ impl Async<TcpStream> {
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 impl TryFrom<std::net::TcpStream> for Async<std::net::TcpStream> {
     type Error = io::Error;
 
@@ -1647,7 +1665,6 @@ impl TryFrom<std::net::TcpStream> for Async<std::net::TcpStream> {
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 impl Async<UdpSocket> {
     /// Creates a UDP socket bound to the specified address.
     ///
@@ -1830,7 +1847,6 @@ impl Async<UdpSocket> {
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 impl TryFrom<std::net::UdpSocket> for Async<std::net::UdpSocket> {
     type Error = io::Error;
 
@@ -1857,7 +1873,7 @@ impl Async<UnixListener> {
     /// ```
     pub fn bind<P: AsRef<Path>>(path: P) -> io::Result<Async<UnixListener>> {
         let path = path.as_ref().to_owned();
-        Async::new(UnixListener::bind(path)?)
+        Async::new_fd(UnixListener::bind(path)?)
     }
 
     /// Accepts a new incoming UDS stream connection.
@@ -2000,7 +2016,7 @@ impl Async<UnixDatagram> {
     /// ```
     pub fn bind<P: AsRef<Path>>(path: P) -> io::Result<Async<UnixDatagram>> {
         let path = path.as_ref().to_owned();
-        Async::new(UnixDatagram::bind(path)?)
+        Async::new_fd(UnixDatagram::bind(path)?)
     }
 
     /// Creates a UDS datagram socket not bound to any address.
@@ -2276,11 +2292,11 @@ fn setup_networking() {
     }
 }
 
-#[cfg(not(target_os = "twizzler"))]
 #[inline]
 fn set_nonblocking(
     #[cfg(unix)] fd: BorrowedFd<'_>,
     #[cfg(windows)] fd: BorrowedSocket<'_>,
+    #[cfg(target_os = "twizzler")] fd: BorrowedFd<'_>,
 ) -> io::Result<()> {
     cfg_if::cfg_if! {
         // ioctl(FIONBIO) sets the flag atomically, but we use this only on Linux
@@ -2291,6 +2307,12 @@ fn set_nonblocking(
         // https://github.com/tokio-rs/mio/commit/0db49f6d5caf54b12176821363d154384357e70a
         if #[cfg(any(windows, target_os = "linux"))] {
             rustix::io::ioctl_fionbio(fd, true)?;
+        } else if #[cfg(target_os = "twizzler")] {
+            twizzler_rt_abi::io::twz_rt_fd_set_config(
+                fd.as_raw_fd(),
+                twizzler_rt_abi::bindings::IO_REGISTER_IO_FLAGS,
+                twizzler_rt_abi::io::IoFlags::NONBLOCKING.bits(),
+            )?;
         } else {
             let previous = rustix::fs::fcntl_getfl(fd)?;
             let new = previous | rustix::fs::OFlags::NONBLOCK;
