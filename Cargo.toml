@@ -37,7 +37,7 @@ slab = "0.4.2"
 tracing = { version = "0.1.37", default-features = false }
 
 [target.'cfg(not(target_os = "twizzler"))'.dependencies]
-rustix = { version = "0.38.2", default-features = false, features = ["fs", "net", "std"] }
+rustix = { version = "1", default-features = false, features = ["fs", "net", "std"] }
 
 [target.'cfg(target_os = "twizzler")'.dependencies]
 twizzler-futures = "0.1.0"
