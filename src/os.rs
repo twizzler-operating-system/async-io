@@ -1,6 +1,6 @@
 //! Platform-specific functionality.
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 pub mod unix;
 
 #[cfg(any(

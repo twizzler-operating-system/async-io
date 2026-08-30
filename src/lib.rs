@@ -77,7 +77,7 @@ use std::{
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
 };
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 use std::{
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, OwnedFd, RawFd},
     os::unix::net::{SocketAddr as UnixSocketAddr, UnixDatagram, UnixListener, UnixStream},
@@ -707,7 +707,7 @@ impl<T: twizzler_futures::TwizzlerWaitable + Sync + Send> Async<T> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl<T: AsFd> Async<T> {
     /// Creates an async I/O handle.
     ///
@@ -784,7 +784,7 @@ impl<T: AsFd> AsFd for Async<T> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl<T: AsFd + From<OwnedFd>> TryFrom<OwnedFd> for Async<T> {
     type Error = io::Error;
 
@@ -1344,7 +1344,7 @@ unsafe impl IoSafe for std::process::ChildStdin {}
 unsafe impl IoSafe for std::process::ChildStdout {}
 unsafe impl IoSafe for std::process::ChildStderr {}
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 unsafe impl IoSafe for std::os::unix::net::UnixStream {}
 
 unsafe impl<T: IoSafe + Read> IoSafe for std::io::BufReader<T> {}
@@ -1855,7 +1855,7 @@ impl TryFrom<std::net::UdpSocket> for Async<std::net::UdpSocket> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl Async<UnixListener> {
     /// Creates a UDS listener bound to the specified path.
     ///
@@ -1930,7 +1930,7 @@ impl Async<UnixListener> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl TryFrom<std::os::unix::net::UnixListener> for Async<std::os::unix::net::UnixListener> {
     type Error = io::Error;
 
@@ -1939,7 +1939,7 @@ impl TryFrom<std::os::unix::net::UnixListener> for Async<std::os::unix::net::Uni
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl Async<UnixStream> {
     /// Creates a UDS stream connected to the specified path.
     ///
@@ -1990,7 +1990,7 @@ impl Async<UnixStream> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl TryFrom<std::os::unix::net::UnixStream> for Async<std::os::unix::net::UnixStream> {
     type Error = io::Error;
 
@@ -1999,7 +1999,7 @@ impl TryFrom<std::os::unix::net::UnixStream> for Async<std::os::unix::net::UnixS
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl Async<UnixDatagram> {
     /// Creates a UDS datagram socket bound to the specified path.
     ///
@@ -2152,7 +2152,7 @@ impl Async<UnixDatagram> {
     }
 }
 
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 impl TryFrom<std::os::unix::net::UnixDatagram> for Async<std::os::unix::net::UnixDatagram> {
     type Error = io::Error;
 
@@ -2269,7 +2269,7 @@ fn connect(
     #[allow(unreachable_patterns)]
     match rn::connect(&socket, &addr) {
         Ok(_) => {}
-        #[cfg(unix)]
+        #[cfg(all(unix, not(target_os = "twizzler")))]
         Err(rio::Errno::INPROGRESS) => {}
         Err(rio::Errno::AGAIN) | Err(rio::Errno::WOULDBLOCK) => {}
         Err(err) => return Err(err.into()),
@@ -2294,7 +2294,7 @@ fn setup_networking() {
 
 #[inline]
 fn set_nonblocking(
-    #[cfg(unix)] fd: BorrowedFd<'_>,
+    #[cfg(all(unix, not(target_os = "twizzler")))] fd: BorrowedFd<'_>,
     #[cfg(windows)] fd: BorrowedSocket<'_>,
     #[cfg(target_os = "twizzler")] fd: BorrowedFd<'_>,
 ) -> io::Result<()> {
@@ -2329,7 +2329,7 @@ fn set_nonblocking(
 /// Converts a `Path` to its socket address representation.
 ///
 /// This function is abstract socket-aware.
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 #[inline]
 fn convert_path_to_socket_address(path: &Path) -> io::Result<rn::SocketAddrUnix> {
     // SocketAddrUnix::new() will throw EINVAL when a path with a zero in it is passed in.

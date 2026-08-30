@@ -35,7 +35,7 @@ cfg_if::cfg_if! {
     ))] {
         mod kqueue;
         pub use kqueue::Registration;
-    } else if #[cfg(unix)] {
+    } else if #[cfg(all(unix, not(target_os = "twizzler")))] {
         mod unix;
         pub use unix::Registration;
     } else if #[cfg(target_os = "twizzler")] {
